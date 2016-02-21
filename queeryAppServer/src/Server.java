@@ -4,7 +4,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class Server {
-	private static final int SERVERPORT = 491;
+	private static final int SERVERPORT = 4910;
 
 	//skip constructor 
 	//creates AppServer after Waiting for connection
@@ -33,6 +33,7 @@ public class Server {
 				
 				//for debugging
 				serverStatus = false;
+				
 				
 			} catch(Exception e){
 				System.out.println(e);
