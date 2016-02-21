@@ -96,12 +96,19 @@ public class AppServer implements Runnable{
 			conn = DriverManager.getConnection(DB_URL,USER,PASS);//complete connection
 			stmt = conn.createStatement();//set statement from DB connection
 			rs = null;//holds results
+			System.out.println("Adding a new user");
+			
+			for(int i = 0; i < commandList.size(); i++){
+				System.out.print(commandList.get(i) + "\t");
+			}
+			System.out.println();
 			
 			//build SQL statement
 	        String sqlCmd = "INSERT INTO users VALUES ('" + commandList.get(1) + "', '"
 						+ commandList.get(2) + "', '" + commandList.get(3) + "', '"
 						+ commandList.get(4) + "', '" + commandList.get(5) + "', '"
 						+ commandList.get(6) + "');";
+	        System.out.println("sending command:" + sqlCmd);
 	        stmt.executeUpdate(sqlCmd);//send command
 	        
 		} catch(SQLException se){
