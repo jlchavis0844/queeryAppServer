@@ -1,4 +1,4 @@
-package queeryAppServer;
+
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -9,18 +9,24 @@ import java.util.Arrays;
 import java.util.List;
 import java.sql.*;
 
+/**
+ * class that is created when a server connection is made
+ * takes command from socket and parses command
+ * runs SQL tasks based on command name from socket.readLine()
+ * @author James
+ *
+ */
 public class AppServer implements Runnable{
 
-	public static final int PORT = 3306;
 	private Socket csocket;
 	private Thread mainT;
 	private BufferedReader read;
 	private PrintStream out;
-	//private Boolean on = true;
+	private Boolean killStatus;//kills server when set to false
 	private List <String> commandList;
 	//private String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-	private String DB_URL = "jdbc:mysql://cecs-db01.coe.csulb.edu/cecs491a11";
-	private static final String USER = "cecs491a11";//hard coded user
+	private String DB_URL = "jdbc:mysql://cecs-db01.coe.csulb.edu/cecs491bp";
+	private String USER = "cecs491a11";
 	private static final String PASS = "ohChox";//hard coded password
 	private Connection conn = null; //create connection
 	private Statement stmt = null; //create null statement
@@ -32,6 +38,7 @@ public class AppServer implements Runnable{
 	 * @throws IOException
 	 */
 	AppServer(Socket csocket) throws IOException {
+		killStatus = true;//kills server when set to false( FALSE = BYE BYE)
 		this.csocket = csocket;
 		mainT = new Thread(this);
 		read = new BufferedReader(new InputStreamReader(csocket.getInputStream()));
@@ -48,12 +55,18 @@ public class AppServer implements Runnable{
 			
 			//switch to read command
 			switch(commandList.get(0)){
-			case "addUser":
-				//addUser Method here
-				break;
-			default: 
-				System.exit(2);//crash and burn
-				break;
+			
+				case "kill"://this is a method for shutting down the server
+					killStatus = true;//it is checked by the server, kills server on true
+					break;
+			
+				case "addUser"://for adding a new user
+					addUser();//calls method for adding a new user
+					break;
+					
+				default: 
+					System.exit(2);//crash and burn
+					break;
 			}
 		} 
 		catch (IOException e) {
@@ -77,7 +90,7 @@ public class AppServer implements Runnable{
 	 * builds statements like: INSERT INTO users VALUES
 	 * ('HankTankerous', 'password1', 'first', 'last', 'email@mail.get', '34'); 
 	 */
-	public void addUser(){
+	private void addUser(){
 		try{
 			Class.forName("com.mysql.jdbc.Driver");//load DBC driver
 			conn = DriverManager.getConnection(DB_URL,USER,PASS);//complete connection
@@ -117,4 +130,14 @@ public class AppServer implements Runnable{
 		      out.println("true");
 		   }//end try	
 		}
+	
+	/**
+	 * used to end the server running
+	 * server runs until this killStatus is set to false
+	 * killStatus changed in switch case during command parse
+	 * @return killStatus - true/false of whether to shutdown the server
+	 */
+	public Boolean getServerStatus(){
+		return killStatus;
+	}
 }
