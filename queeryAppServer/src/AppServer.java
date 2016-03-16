@@ -18,12 +18,12 @@ import java.sql.*;
  */
 public class AppServer implements Runnable{
 
-	private Socket csocket;
-	private Thread mainT;
-	private BufferedReader read;
-	private PrintStream out;
+	private Socket csocket;//socket to connect to the client
+	private Thread mainT;//thread that runs the socket
+	private BufferedReader read;//reads incoming text
+	private PrintStream out;//sends return text
 	private Boolean killStatus;//kills server when set to false
-	private List <String> commandList;
+	private List <String> commandList;//list text string
 	//private String JDBC_DRIVER = "com.mysql.jdbc.Driver";
 	private static final String DB_URL = "jdbc:mysql://cecs-db01.coe.csulb.edu/cecs491bp";
 	private static final String USER = "cecs491a11";
@@ -31,8 +31,8 @@ public class AppServer implements Runnable{
 	private Connection conn = null; //create connection
 	private Statement stmt = null; //create null statement
 	private ResultSet rs = null;//for return results
-	private Boolean error = false;
-	private String command;//holds the command to be completed
+	private Boolean error = false;//if an error is found
+	String command;//holds SQL command
 	
 	/**
 	 * default constructor
@@ -41,10 +41,10 @@ public class AppServer implements Runnable{
 	 */
 	AppServer(Socket csocket) throws IOException {
 		killStatus= true;//kills server when set to false( FALSE = BYE BYE)
-		this.csocket = csocket;
-		mainT = new Thread(this);
-		read = new BufferedReader(new InputStreamReader(csocket.getInputStream()));
-		out = new PrintStream(csocket.getOutputStream());
+		this.csocket = csocket;//receive socket
+		mainT = new Thread(this);//make this a new thread
+		read = new BufferedReader(new InputStreamReader(csocket.getInputStream()));//new reader
+		out = new PrintStream(csocket.getOutputStream());//new writer
 		try {
 			Class.forName("com.mysql.jdbc.Driver");//load JDBC driver
 			conn = DriverManager.getConnection(DB_URL,USER,PASS);//complete connection
@@ -52,15 +52,15 @@ public class AppServer implements Runnable{
 			rs = null;//holds results
 			command = read.readLine();//read in the command
 			//start command parse
-			commandList = Arrays.asList(command.split("\\s*,\\s*"));
+			commandList = Arrays.asList(command.split("\\s*,\\s*"));//load text command into a list
 		} catch (ClassNotFoundException e) {
 			// JDBC error
 			e.printStackTrace();//print to console
-			out.println("JDBCerror");// send error back to client
+			out.println(e.getMessage());// send error back to client
 			error = true;//set internal error status
 		} catch (SQLException e) {
 			//they made me put this in here
-			out.println("connError");
+			out.println(e.getMessage());
 			error = true;
 			e.printStackTrace();
 		}
@@ -109,6 +109,13 @@ public class AppServer implements Runnable{
 				System.exit(2);//crash and burn
 				break;
 			}
+		try {
+			read.close();//close bufffers
+			out.close();//close buffers
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}//end run
 	
 	/**
@@ -130,8 +137,8 @@ public class AppServer implements Runnable{
 		try{
 			System.out.println("Adding a new user");
 			
-			for(int i = 0; i < commandList.size(); i++){
-				System.out.print(commandList.get(i) + "\t");
+			for(int i = 0; i < commandList.size(); i++){//go through command list
+				System.out.print(commandList.get(i) + "\t");//print out the command and params
 			}
 			System.out.println();
 			
@@ -140,33 +147,35 @@ public class AppServer implements Runnable{
 						+ commandList.get(2) + "', '" + commandList.get(3) + "', '"
 						+ commandList.get(4) + "', '" + commandList.get(5) + "', '"
 						+ commandList.get(6) + "');";
-	        System.out.println("sending command:" + sqlCmd);
+	        System.out.println("sending command:" + sqlCmd);//print SQL command to console
 	        stmt.executeUpdate(sqlCmd);//send command
 	        
 		} catch(SQLException se){
 			//Handle errors for JDBC
 			error = true;
 		    se.printStackTrace();
-		    out.println("SQLerror");
+		    out.println(se.getMessage());//return error message
 		} catch(Exception e){
 			//general error case, Class.forName
 			error = true;
 			e.printStackTrace();
-			out.println("genError");
+			out.println(e.getMessage());
 		} finally{
 		      //finally block used to close resources
-		      try{
+		      try{//close SQLQuery
 		         if(stmt!=null)
 		            stmt.close();
 		      }catch(SQLException se2){
-		    	  out.println("Can't close statement");
+		    	  System.out.println("Can't close statement");
+		    	  out.println(se2.getMessage());
 		      }// nothing we can do
-		      try{
+		      try{//close the connection
 		         if(conn!=null)
 		            conn.close();
 		      }catch(SQLException se){
-		    	 out.println("Can't close conn");
+		    	 System.out.println("Can't close conn");
 		         se.printStackTrace();
+		         out.println(se.getMessage());
 		      }//end finally try
 		      if(error = false)//if an exception, is not thrown, returns true
 		    	  out.println("true");//return true
@@ -277,6 +286,7 @@ public class AppServer implements Runnable{
 	 * 3 - raw latitude
 	 */	
 	private void setLocation(){
+		//make the sql command
 		String sqlCmd = "INSERT INTO location VALUES ('" + commandList.get(1) + "', '"
 						+ commandList.get(2) + "', '" + commandList.get(3) + "');";
 		
@@ -285,7 +295,7 @@ public class AppServer implements Runnable{
 			
 		} catch (SQLException e) {
 			error = true;
-			out.println("locError");
+			out.println(e.getMessage());
 			e.printStackTrace();
 		}
 		if(error == false)
@@ -311,7 +321,7 @@ public class AppServer implements Runnable{
 			
 		} catch (SQLException e) {
 			error = true;
-			out.println("locError");
+			out.println(e.getMessage());
 			e.printStackTrace();
 		}
 		if(error == false)
@@ -339,8 +349,9 @@ public class AppServer implements Runnable{
 	 *AND ((personalSlider.pOrientation)>=0 And (personalSlider.pOrientation)<=5));
 	 */
 	private void getMatches(){
-		ArrayList<String> matchList = new ArrayList<>();
+		ArrayList<String> matchList = new ArrayList<>();//holds user names of found matches
 		
+		//load in SQL command
 		String command ="SELECT location.userName" + "FROM (location INNER JOIN users"
 				+ "ON location.userName = users.userName) INNER JOIN personalSlider "
 				+ "ON users.userName = personalSlider.userName WHERE (((location.longitude) <= ";
@@ -354,23 +365,29 @@ public class AppServer implements Runnable{
 		command += "AND ((personalSlider.pOrientation)>=" + commandList.get(7) +
 				" And (personalSlider.pOrientation)<=" + commandList.get(8) + "));";
 		
-		try {
-			rs = stmt.executeQuery(command);
+		try {//try block for sending SQL command
+			rs = stmt.executeQuery(command);//send command
 			
-			while(rs.next()){
-				matchList.add(rs.getString("userName"));
+			while(rs.next()){//while there are matches
+				matchList.add(rs.getString("userName"));//load userName
 			}
 			
-			matchList = getSeekingSlider(matchList);
+			ArrayList<String> fullMatches = getSeekingSlider(matchList);//retrieve user
 			
 			
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			out.println(e.getMessage());
 		}
 		
 	}
 	
+	/**
+	 * Rounds number up to three decimal places at adds 0.4 to number
+	 * @param longitude - String of the longitude
+	 * @return String of the new longitude
+	 */
 	private String roundLongUp(String longitude){
 		double temp = new BigDecimal(Double.valueOf(longitude))
 			    .setScale(3, BigDecimal.ROUND_HALF_UP).doubleValue();
@@ -406,30 +423,41 @@ public class AppServer implements Runnable{
 		return Double.toString(temp);
 	}
 	
+	/**
+	 * fetches the seeking slider information per userName and returns it in an ArrayList
+	 * @param inList - ArrayList<String> of the userNames to fetch info for.
+	 * @return ArrayList<String> holding userName, gender min, gendermax, expressionmin,
+	 * expressionmax, orientationmin, orientationmax
+	 */
 	private ArrayList<String> getSeekingSlider(ArrayList<String> inList){
 		String command = "SELECT * FROM seekingSlider WHERE userName = ";
 		ArrayList<String> tempList = new ArrayList<>();
 		int listSize = inList.size();
 
-		if(listSize == 0) return inList;
+		if(listSize == 0) return inList;//if the list is empty, return empty list
 		
-		for(int i = 0; i < listSize; i++){
-			if(i == 0){
-				command += inList.get(i);
-			} else if(i == listSize){
-				command += " or WHERE userName = " + inList.get(i) + ";";
-			} else {
-				command += " or WHERE userName = " + inList.get(i);
-			}
-		}//end for loop
-		try {
+		if(listSize == 1){//if there is only 1 in the list
+			command += inList.get(0) + ";";
+		} else {//if there is more than 1
+			for(int i = 0; i < listSize; i++){//go through the list
+				if(i == 0){//for the first userName
+					command += inList.get(i);
+				} else if(i == listSize){//for the last user name
+					command += " or WHERE userName = " + inList.get(i) + ";";
+				} else {//for all other userNames
+					command += " or WHERE userName = " + inList.get(i);
+				}
+			}//end for loop
+		}
+		try {//send command and parse results
 			rs = stmt.executeQuery(command);
 			
-			while(rs.next()){
+			while(rs.next()){//while there is a result remaining
+				//get result and store it into a string
 				String temp = rs.getString(0) + "," + rs.getString(1) + ","  + rs.getString(2)
 						 + "," + rs.getString(3) + "," + rs.getString(4) + "," + rs.getString(5)
 						 + "," + rs.getString(6);
-				tempList.add(temp);
+				tempList.add(temp);//add string to the tempList
 			}
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
@@ -438,6 +466,4 @@ public class AppServer implements Runnable{
 		}
 		return tempList;
 	}
-
-
 }//end class
