@@ -244,7 +244,8 @@ public class AppServer implements Runnable{
 			stmt.executeUpdate(sqlCmd);//send command
 		} catch (SQLException e) {
 			error = true;//set error condition
-			out.println("sliderError");//write the error code to the client
+			System.out.println("sliderError");//write the error code to the client
+			out.println("");
 			e.printStackTrace();//send  to console
 		}
 		if (error = false)//if there is no error caught
@@ -331,14 +332,15 @@ public class AppServer implements Runnable{
 	/**
 	 * Finds and returns matches based on parameters listed below
 	 * 0 - getMatches
-	 * 1 - searching user's longitude
-	 * 2 - searching user's latitude
-	 * 3 - searching user's pGender min
-	 * 4 - searching user's pGender max
-	 * 5 - searching user's pExpression min
-	 * 6 - searching user's pExpression max
-	 * 7 - searching user's pOrientation min
-	 * 8 - searching user's pOrientation max
+	 * 1 - userName
+	 * 2 - searching user's longitude
+	 * 3 - searching user's latitude
+	 * 4 - searching user's pGender min
+	 * 5 - searching user's pGender max
+	 * 6 - searching user's pExpression min
+	 * 7 - searching user's pExpression max
+	 * 8 - searching user's pOrientation min
+	 * 9 - searching user's pOrientation max
 	 * 
 	 *SELECT location.userName FROM (location INNER JOIN users ON location.userName = users.userName)
 	 *INNER JOIN personalSlider ON users.userName = personalSlider.userName
@@ -351,19 +353,22 @@ public class AppServer implements Runnable{
 	private void getMatches(){
 		ArrayList<String> matchList = new ArrayList<>();//holds user names of found matches
 		
+		String command = "SELECT pGender, pExpression, pOrientation "
+				+ "FROM personalSlider WHERE userName = " + commandList.get(1);
+		
 		//load in SQL command
-		String command ="SELECT location.userName" + "FROM (location INNER JOIN users"
+		command ="SELECT location.userName" + "FROM (location INNER JOIN users"
 				+ "ON location.userName = users.userName) INNER JOIN personalSlider "
 				+ "ON users.userName = personalSlider.userName WHERE (((location.longitude) <= ";
-		command += roundLongUp(commandList.get(1)) + "And (location.longitude) >= ";
-		command += roundLongDown(commandList.get(1)) + ") AND ((location.latitude) <= ";
-		command += roundLatUp(commandList.get(2)) + " And (location.latitude)>= ";
-		command += roundLatDown(commandList.get(2)) + ") AND ((personalSlider.pGender)>=";
-		command += commandList.get(3) + " And (personalSlider.pGender)<= " + commandList.get(4);
-		command += "AND ((personalSlider.pExpression)>= " + commandList.get(5) +
-				" And (personalSlider.pExpression)<= " + commandList.get(6) + ")";
-		command += "AND ((personalSlider.pOrientation)>=" + commandList.get(7) +
-				" And (personalSlider.pOrientation)<=" + commandList.get(8) + "));";
+		command += roundLongUp(commandList.get(2)) + "And (location.longitude) >= ";
+		command += roundLongDown(commandList.get(2)) + ") AND ((location.latitude) <= ";
+		command += roundLatUp(commandList.get(3)) + " And (location.latitude)>= ";
+		command += roundLatDown(commandList.get(3)) + ") AND ((personalSlider.pGender)>=";
+		command += commandList.get(4) + " And (personalSlider.pGender)<= " + commandList.get(5);
+		command += "AND ((personalSlider.pExpression)>= " + commandList.get(6) +
+				" And (personalSlider.pExpression)<= " + commandList.get(7) + ")";
+		command += "AND ((personalSlider.pOrientation)>=" + commandList.get(8) +
+				" And (personalSlider.pOrientation)<=" + commandList.get(9) + "));";
 		
 		try {//try block for sending SQL command
 			rs = stmt.executeQuery(command);//send command
@@ -372,8 +377,11 @@ public class AppServer implements Runnable{
 				matchList.add(rs.getString("userName"));//load userName
 			}
 			
-			ArrayList<String> fullMatches = getSeekingSlider(matchList);//retrieve user
+			//each String[] is a match, 0 = userName, 1 = pGenderMin, .....6=pOrientationMax
+			ArrayList<String[]> fullMatches = getSeekingSlider(matchList);
 			
+			//remove the non-overlapping users
+			//crossMatch(commandList, fullMatches);
 			
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
@@ -396,6 +404,11 @@ public class AppServer implements Runnable{
 		return Double.toString(temp);
 	}
 	
+	/**
+	 * Rounds number up to three decimal places at subtracts 0.4 to number
+	 * @param longitude - String of the longitude
+	 * @return String of the new longitude
+	 */
 	private String roundLongDown(String longitude){
 		double temp = new BigDecimal(Double.valueOf(longitude))
 			    .setScale(3, BigDecimal.ROUND_HALF_UP)
@@ -405,6 +418,11 @@ public class AppServer implements Runnable{
 		return Double.toString(temp);
 	}
 	
+	/**
+	 * Rounds number up to three decimal places at adds 0.4 to number
+	 * @param lat - String of the latitude
+	 * @return String of the new latitude
+	 */
 	private String roundLatUp(String lat){
 		double temp = new BigDecimal(Double.valueOf(lat))
 			    .setScale(3, BigDecimal.ROUND_HALF_UP)
@@ -414,6 +432,11 @@ public class AppServer implements Runnable{
 		return Double.toString(temp);
 	}
 	
+	/**
+	 * Rounds number up to three decimal places at adds 0.4 to number
+	 * @param lat - String of the latitude
+	 * @return String of the new latitude
+	 */
 	private String roundLatDown(String longitude){
 		double temp = new BigDecimal(Double.valueOf(longitude))
 			    .setScale(3, BigDecimal.ROUND_HALF_UP)
@@ -429,12 +452,13 @@ public class AppServer implements Runnable{
 	 * @return ArrayList<String> holding userName, gender min, gendermax, expressionmin,
 	 * expressionmax, orientationmin, orientationmax
 	 */
-	private ArrayList<String> getSeekingSlider(ArrayList<String> inList){
+	private ArrayList<String[]> getSeekingSlider(ArrayList<String> inList){
 		String command = "SELECT * FROM seekingSlider WHERE userName = ";
-		ArrayList<String> tempList = new ArrayList<>();
+		ArrayList<String[]> tempList = new ArrayList<>();
 		int listSize = inList.size();
-
-		if(listSize == 0) return inList;//if the list is empty, return empty list
+		String[] strArr = new String[7];//holds matches data
+		
+		if(listSize == 0) return tempList;//if the list is empty, return empty list
 		
 		if(listSize == 1){//if there is only 1 in the list
 			command += inList.get(0) + ";";
@@ -454,11 +478,13 @@ public class AppServer implements Runnable{
 			
 			while(rs.next()){//while there is a result remaining
 				//get result and store it into a string
-				String temp = rs.getString(0) + "," + rs.getString(1) + ","  + rs.getString(2)
+				/*String temp = rs.getString(0) + "," + rs.getString(1) + ","  + rs.getString(2)
 						 + "," + rs.getString(3) + "," + rs.getString(4) + "," + rs.getString(5)
 						 + "," + rs.getString(6);
-				tempList.add(temp);//add string to the tempList
-			}
+				tempList.add(temp);//add string to the tempList*/
+				tempList.add(new String[]{rs.getString(0),rs.getString(1),rs.getString(2),
+						rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6)});
+			}//end while loop
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -466,4 +492,9 @@ public class AppServer implements Runnable{
 		}
 		return tempList;
 	}
+	
+	private void crossMatch(String client, ArrayList<String[]> matchList){
+		
+	}
+	
 }//end class
