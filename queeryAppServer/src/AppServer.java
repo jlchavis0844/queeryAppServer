@@ -76,6 +76,10 @@ public class AppServer implements Runnable{
 	public void run() {//start thread functions on incoming command
 		
 		//switch to read command
+		for(String s: commandList){
+			System.out.print(s + "\t");
+		}
+		System.out.println("\nEnd command");
 		switch(commandList.get(0)){
 			case "kill"://this is a method for shutting down the server
 				killStatus = true;//it is checked by the server, kills server on true
@@ -177,7 +181,7 @@ public class AppServer implements Runnable{
 		         se.printStackTrace();
 		         out.println(se.getMessage());
 		      }//end finally try
-		      if(error = false)//if an exception, is not thrown, returns true
+		      if(error == false)//if an exception, is not thrown, returns true
 		    	  out.println("true");//return true
 		   }//end try	
 		}
@@ -204,23 +208,24 @@ public class AppServer implements Runnable{
 	 */
 	private void login(){
 		//SELECT password FROM users WHERE userName = userName
-		String sqlCmd = "SELECT password FROM users WHERE userName = "
-						+ commandList.get(1);
+		String sqlCmd = "SELECT password FROM users WHERE userName = \"" + commandList.get(1) + "\";";
 		try {//being SQL command
 			rs = stmt.executeQuery(sqlCmd);//execute SQL, store result in rs
 			if(rs == null){//if the rs is null, no matching userName was found
 				out.println("userNotFound");//send client the error message
-			} else {
+			} else if (rs.next()){
 				String tPass = rs.getString("password");//store returned password
-				if(tPass == commandList.get(1)){//compare given and the returned
+				if(tPass.equals(commandList.get(2))){//compare given and the returned
+					System.out.println("password match");
 					out.println("true");//return match to the client
 				} else{
+					error = true;
 					out.println("pswdError");//passwords did not match
 				}
 			}
 		} catch (SQLException e) {//connection error
 			error = true;
-			out.println("connError");
+			out.println(e.getMessage());
 			e.printStackTrace();
 		}
 	}
