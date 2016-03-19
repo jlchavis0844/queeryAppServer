@@ -19,33 +19,28 @@ import java.sql.*;
 public class AppServer implements Runnable{
 
 	private Socket csocket;//socket to connect to the client
-	private Thread mainT;//thread that runs the socket
 	private BufferedReader read;//reads incoming text
 	private PrintStream out;//sends return text
-	private Boolean killStatus;//kills server when set to false
 	private List <String> commandList;//list text string
-	//private String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-	private static final String DB_URL = "jdbc:mysql://cecs-db01.coe.csulb.edu/cecs491bp";
+	private static final String DB_URL = "jdbc:mysql://cecs-db01.coe.csulb.edu/cecs491bp?autoReconnect=true&useSSL=false";
 	private static final String USER = "cecs491a11";
 	private static final String PASS = "ohChox";//hard coded password
 	private Connection conn = null; //create connection
 	private Statement stmt = null; //create null statement
 	private ResultSet rs = null;//for return results
 	private Boolean error = false;//if an error is found
-	String command;//holds SQL command
+	private String command;//holds SQL command
 	
 	/**
 	 * default constructor
 	 * @param csocket - socket to connect to 
 	 * @throws IOException
 	 */
-	AppServer(Socket csocket) throws IOException {
-		killStatus= true;//kills server when set to false( FALSE = BYE BYE)
+	AppServer(Socket csocket, Boolean serverStatus) {
 		this.csocket = csocket;//receive socket
-		mainT = new Thread(this);//make this a new thread
-		read = new BufferedReader(new InputStreamReader(csocket.getInputStream()));//new reader
-		out = new PrintStream(csocket.getOutputStream());//new writer
 		try {
+			read = new BufferedReader(new InputStreamReader(csocket.getInputStream()));//new reader
+			out = new PrintStream(csocket.getOutputStream());//new writer
 			Class.forName("com.mysql.jdbc.Driver");//load JDBC driver
 			conn = DriverManager.getConnection(DB_URL,USER,PASS);//complete connection
 			stmt = conn.createStatement();//set statement from DB connection
@@ -64,25 +59,24 @@ public class AppServer implements Runnable{
 			error = true;
 			e.printStackTrace();
 		}
-
-		mainT.start();//start the main thread
-		
+		//mainT.start();//start the main thread
+ catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Runnable#run()
-	 */
 	@Override
 	public void run() {//start thread functions on incoming command
 		
 		//switch to read command
 		for(String s: commandList){
-			System.out.print(s + "\t");
+			System.out.print(s + " ");
 		}
 		System.out.println("\nEnd command");
 		switch(commandList.get(0)){
 			case "kill"://this is a method for shutting down the server
-				killStatus = true;//it is checked by the server, kills server on true
+				QueeryServer.serverStatus = false;
 				break;
 		
 			case "addUser"://for adding a new user
@@ -105,6 +99,14 @@ public class AppServer implements Runnable{
 				setLocation();//called on registration only, sets location 
 				break;
 				
+			case "setSSlider":
+				setSeekingSlider();
+				break;
+				
+			case "updateSSlider":
+				updateSeekingSlider();
+				break;
+				
 			case "updateLocation":
 				updateLocation();//updates a user's location
 				break;
@@ -114,7 +116,7 @@ public class AppServer implements Runnable{
 				break;
 			}
 		try {
-			read.close();//close bufffers
+			read.close();//close buffers
 			out.close();//close buffers
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -123,19 +125,21 @@ public class AppServer implements Runnable{
 	}//end run
 	
 	/**
-	 * adds a new user and sends back the userID
-	 * commandList should be structured as such
-	 * 0 = addUser
-	 * 1 = userName
-	 * 2 = password
-	 * 3 = First
-	 * 4 = Last
-	 * 5 = email
-	 * 6 = age
+	 * adds a new user and sends back the userID. 
+	 * commandList should be structured as such<br>
+	 * 0 = addUser<br>
+	 * 1 = userName<br>
+	 * 2 = password<br>
+	 * 3 = First<br>
+	 * 4 = Last<br>
+	 * 5 = email<br>
+	 * 6 = age<br>
 	 * 
-	 * writes status to out, true = success, else error message
+	 * writes status to out, true = success, else error message<br>
 	 * builds statements like: INSERT INTO users VALUES
-	 * ('HankTankerous', 'password1', 'first', 'last', 'email@mail.get', '34'); 
+	 * ('HankTankerous', 'password1', 'first', 'last', 'email@mail.get', '34'); <br>
+	 * working for proto1
+	 * 
 	 */
 	private void addUser(){
 		try{
@@ -187,24 +191,24 @@ public class AppServer implements Runnable{
 		}
 	
 	/**
-	 * used to end the server running
-	 * server runs until this killStatus is set to false
-	 * killStatus changed in switch case during command parse
+	 * used to end the server running<br>
+	 * server runs until this killStatus is set to false<br>
+	 * killStatus changed in switch case during command parse<br>
 	 * @return killStatus - true/false of whether to shutdown the server
 	 */
-	public Boolean getServerStatus(){
+	/*public Boolean getServerStatus(){
 		return killStatus;
-	}
+	}*/
 	
 	/**
-	 * used to check that the client user login info is correct
+	 * used to check that the client user login info is correct<br>
 	 * 
-	 * 0 - login
-	 * 1 - userName
-	 * 2 - password
+	 * 0 - login<br>
+	 * 1 - userName<br>
+	 * 2 - password<br>
 	 * 
-	 * returns true on login, false otherwise
-	 * 
+	 * returns true on login, false otherwise<br>
+	 * working for Proto1
 	 */
 	private void login(){
 		//SELECT password FROM users WHERE userName = userName
@@ -231,14 +235,16 @@ public class AppServer implements Runnable{
 	}
 	
 	/**
-	 * The method to process the set personal slider command
-	 * 0 - setSlider
-	 * 1 - userName
-	 * 2 - gender identity
-	 * 3 - gender expression
-	 * 4 - sexual orientation
+	 * The method to process the set personal slider command<br>
+	 * 0 - setSlider<br>
+	 * 1 - userName<br>
+	 * 2 - gender identity<br>
+	 * 3 - gender expression<br>
+	 * 4 - sexual orientation<br>
+	 * <br>
+	 * sends client "true" if the slider is set, error on fail<br>
+	 * Working for Proto1
 	 * 
-	 * sends client "true" if the slider is set, error on fail
 	 */
 	private void setPersonalSlider(){
 		//INSERT INTO personalSlider values ('userName', 'int', 'int', 'int');
@@ -250,46 +256,58 @@ public class AppServer implements Runnable{
 		} catch (SQLException e) {
 			error = true;//set error condition
 			System.out.println("sliderError");//write the error code to the client
-			out.println("");
+			out.println(e.getMessage());
 			e.printStackTrace();//send  to console
 		}
-		if (error = false)//if there is no error caught
+		if (error == false)//if there is no error caught
 			out.println("true");//send success to the client
 	}
 	
 	/**
-	 * The method to process the update personal slider command
-	 * 0 - setSlider
-	 * 1 - userName
-	 * 2 - gender identity
-	 * 3 - gender expression
-	 * 4 - sexual orientation
+	 * The method to process the update personal slider command<br>
+	 * 0 - setSlider<br>
+	 * 1 - userName<br>
+	 * 2 - gender identity<br>
+	 * 3 - gender expression<br>
+	 * 4 - sexual orientation<br>
 	 * 
 	 * sends client "true" if the slider is set, error on fail
+	 * working for proto1
 	 */
 	private void updatePersonalSlider(){
 		//UPDATE personalSlider SET pGender='int', pExpression='int', pOrientation='int' WHERE userName='userName';
 		String sqlCmd = "UPDATE personalSlider SET pGender = '" + commandList.get(2) + "', pExpression = '"
 						+ commandList.get(3) + "', pOrientation = '" + commandList.get(4)
 						+ "' WHERE userName = '" + commandList.get(1) + "';";
+		System.out.println(sqlCmd);
 		try {//send the SQL command
-			stmt.executeUpdate(sqlCmd);//send command
+			int rowsUpdated = stmt.executeUpdate(sqlCmd);//send command
+			
+			if(rowsUpdated == 0){//check if user was found (0 = no update)
+				out.println("User not found");
+				error = true;
+			}
+			
+			System.out.println(sqlCmd + "\t" + rowsUpdated);
 		} catch (SQLException e) {
 			error = true;//set error condition
 			out.println("sliderError");//write the error code to the client
 			e.printStackTrace();//send  to console
 		}
-		if (error = false)//if there is no error caught
+		if (error == false)//if there is no error caught
 			out.println("true");//send success to the client
+		
 	}
 
 	/**
-	 * sets the location on the user's registration
+	 * sets the location on the user's registration<br>
 	 * 
-	 * 0 - setLocation
-	 * 1 - userName
-	 * 2 - raw longitude
-	 * 3 - raw latitude
+	 * 0 - setLocation<br>
+	 * 1 - userName<br>
+	 * 2 - raw longitude<br>
+	 * 3 - raw latitude<br>
+	 * 
+	 * working for proto1
 	 */	
 	private void setLocation(){
 		//make the sql command
@@ -310,21 +328,27 @@ public class AppServer implements Runnable{
 
 
 	/**
-	 * updates the user's current location
+	 * updates the user's current location<br>
 	 * 
-	 * 0 - setLocation
-	 * 1 - userName
-	 * 2 - raw longitude
-	 * 3 - raw latitude
+	 * 0 - setLocation<br>
+	 * 1 - userName<br>
+	 * 2 - raw longitude<br>
+	 * 3 - raw latitude<br>
+	 * 
+	 * working from proto1
 	 */	
 	private void updateLocation(){
-		//UPDATE location SET longitude = 'double', latitude 'double' WHERE userName = userName
-		String sqlCmd = "UPDATE location SET longitude = '" + commandList.get(2) + "', latitude = '"
-						+ commandList.get(3) + "', WHERE userName = '" + commandList.get(1) + "';";
+		//UPDATE location SET longitude = double, latitude = double WHERE userName = userName
+		String sqlCmd = "UPDATE location SET longitude = " + commandList.get(2) + ", latitude = "
+						+ commandList.get(3) + " WHERE userName = '" + commandList.get(1) + "';";
+		System.out.println(sqlCmd);
 		
 		try {//start SQL statement
-			stmt.executeUpdate(sqlCmd);
-			
+			int changed = stmt.executeUpdate(sqlCmd);
+			if(changed == 0){//if no updates were made (changed = 0) 
+				error = true;//error
+				out.println("No user found");//error message
+			}
 		} catch (SQLException e) {
 			error = true;
 			out.println(e.getMessage());
@@ -335,17 +359,17 @@ public class AppServer implements Runnable{
 	}
 
 	/**
-	 * Finds and returns matches based on parameters listed below
-	 * 0 - getMatches
-	 * 1 - userName
-	 * 2 - searching user's longitude
-	 * 3 - searching user's latitude
-	 * 4 - searching user's pGender min
-	 * 5 - searching user's pGender max
-	 * 6 - searching user's pExpression min
-	 * 7 - searching user's pExpression max
-	 * 8 - searching user's pOrientation min
-	 * 9 - searching user's pOrientation max
+	 * Finds and returns matches based on parameters listed below<br>
+	 * 0 - getMatches<br>
+	 * 1 - userName<br>
+	 * 2 - searching user's longitude<br>
+	 * 3 - searching user's latitude<br>
+	 * 4 - searching user's pGender min<br>
+	 * 5 - searching user's pGender max<br>
+	 * 6 - searching user's pExpression min<br>
+	 * 7 - searching user's pExpression max<br>
+	 * 8 - searching user's pOrientation min<br>
+	 * 9 - searching user's pOrientation max<br>
 	 * 
 	 *SELECT location.userName FROM (location INNER JOIN users ON location.userName = users.userName)
 	 *INNER JOIN personalSlider ON users.userName = personalSlider.userName
@@ -355,6 +379,7 @@ public class AppServer implements Runnable{
 	 *AND ((personalSlider.pExpression)>=0 And (personalSlider.pExpression)<=5)- done
 	 *AND ((personalSlider.pOrientation)>=0 And (personalSlider.pOrientation)<=5));
 	 */
+	@SuppressWarnings("unused")
 	private void getMatches(){
 		ArrayList<String> matchList = new ArrayList<>();//holds user names of found matches
 		
@@ -501,5 +526,74 @@ public class AppServer implements Runnable{
 	private void crossMatch(String client, ArrayList<String[]> matchList){
 		
 	}
+	
+	/**
+	 * sets the user's seeking slider values, these are used to cross match users<br>
+	 * 
+	 * 0 - setSSlider<br>
+	 * 1 - userName<br>
+	 * 2 - genderMin<br>
+	 * 3 - genderMax<br>
+	 * 4 - expressionMin<br>
+	 * 5 - expressionMax<br>
+	 * 6 - orientationMin<br>
+	 * 7 - orientationMax<br>
+	 * 
+	 * working for proto1<br>
+	 */
+	private void setSeekingSlider(){
+		//INSERT INTO seekingSlider values ('userName', int, int, int, int, int, int);
+		String sqlCmd = "INSERT INTO seekingSlider VALUES ('" + commandList.get(1)
+						+ "', " + commandList.get(2) + ", " + commandList.get(3)
+						+ ", " + commandList.get(4) + ", " + commandList.get(5)
+						+ ", " + commandList.get(6) + ", " + commandList.get(7) + ");";
+		System.out.println(sqlCmd);
+		try {//send the SQL command
+			stmt.executeUpdate(sqlCmd);//send command
+		} catch (SQLException e) {
+			error = true;//set error condition
+			System.out.println("sliderError");//write the error code to the client
+			out.println(e.getMessage());
+			e.printStackTrace();//send  to console
+		}
+		if (error == false)//if there is no error caught
+			out.println("true");//send success to the client
+	}
+	
+	
+	/**
+	 * updates the user's seeking slider that is used to cross match with other users<br>
+	 * 
+	 * 0 - setSSlider<br>
+	 * 1 - userName<br>
+	 * 2 - genderMin<br>
+	 * 3 - genderMax<br>
+	 * 4 - expressionMin<br>
+	 * 5 - expressionMax<br>
+	 * 6 - orientationMin<br>
+	 * 7 - orientationMax<br>
+	 * 
+	 * working for proto1
+	 */
+	private void updateSeekingSlider(){
+		//UPDATE seekingSlider SET pGenderMin = int, pGenderMax = int, pExpressionMin = int, pExpressionMax = int
+		//pOrientationMin = int, pOrientation = int WHERE userName = "userName"
+		String sqlCmd = "UPDATE seekingSlider SET pGenderMin = " + commandList.get(2) + ", pGenderMax = " + commandList.get(3)
+						+ ", pExpressionMin = " + commandList.get(4) + ", pExpressionMax = " + commandList.get(5)
+						+ ", pOrientationMin = " + commandList.get(6) + ", pOrientationMax = " + commandList.get(7)
+						+ " WHERE userName = \"" + commandList.get(1) + "\";";
+		System.out.println(sqlCmd);
+		try {//send the SQL command
+			stmt.executeUpdate(sqlCmd);//send command
+		} catch (SQLException e) {
+			error = true;//set error condition
+			System.out.println("sliderError");//write the error code to the client
+			out.println(e.getMessage());
+			e.printStackTrace();//send  to console
+		}
+		if (error == false)//if there is no error caught
+			out.println("true");//send success to the client
+	}
+	
 	
 }//end class
