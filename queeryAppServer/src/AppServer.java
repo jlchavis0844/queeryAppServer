@@ -225,20 +225,22 @@ public class AppServer implements Runnable{
 	private void login(){
 		//SELECT password FROM users WHERE userName = userName
 		String sqlCmd = "SELECT password FROM users WHERE userName = \"" + commandList.get(1) + "\";";
+		String tPass = null;
 		try {//being SQL command
 			rs = stmt.executeQuery(sqlCmd);//execute SQL, store result in rs
-			if(rs == null){//if the rs is null, no matching userName was found
-				out.println("userNotFound");//send client the error message
-			} else if (rs.next()){
-				String tPass = rs.getString("password");//store returned password
+			if (rs.next()){//if a user was found
+				tPass = rs.getString("password");//store returned password
 				if(tPass.equals(commandList.get(2))){//compare given and the returned
 					System.out.println("password match");
 					out.println("true");//return match to the client
-				} else{
+				} else{//password mismatch
 					error = true;
 					out.println("pswdError");//passwords did not match
 				}
-			}
+			} else if(tPass == null) {//if no user is found
+				error = true;
+				out.println("userNotFound");
+			} 
 		} catch (SQLException e) {//connection error
 			error = true;
 			out.println(e.getMessage());
