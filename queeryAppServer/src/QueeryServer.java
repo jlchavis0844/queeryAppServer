@@ -25,17 +25,15 @@ public class QueeryServer {
 				System.out.println("Connected: ");//connection complete
 				
 				new Thread(new AppServer(sock, serverStatus)).start();//make AppServer object to handle connection
-
-				//serverStatus = s.getServerStatus();//defaults to true, change on kill command
-
-				if(serverStatus == false)//quit on serverKill
-					System.out.println("ending the server");
 			}
+			System.out.println("ending the server");
 		} catch(Exception e){//something went wrong
 			System.out.println(e);
 		} finally {//close out on end
 			try {
-				server.close();
+				if(server != null){
+					server.close();
+				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
