@@ -126,6 +126,14 @@ public class AppServer implements Runnable{
 					getMatches();
 					break;
 					
+				case "testUserName":
+					testUserName();
+					break;
+					
+				case "echo":
+					out.println("echo command received");
+					break;
+
 				default: 
 					System.exit(2);//crash and burn
 					break;
@@ -134,6 +142,7 @@ public class AppServer implements Runnable{
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			out.println(e.getMessage());
 		} //end try
 		try {
 			read.close();//close buffers
@@ -771,6 +780,31 @@ public class AppServer implements Runnable{
 				currArr[7] = String.valueOf(dist);//add the distance from the client
 			}
 		}
+	}
+	
+	/**
+	 * test to see if the given username already exists
+	 */
+	private void testUserName(){
+		//get user with the 'test' userName
+		String command = "SELECT userName FROM users "
+				+ "WHERE userName = \"" + commandList.get(1) + "\";";
+		System.out.println(command);//print command
+		try {//send command
+			rs = stmt.executeQuery(command);
+			
+			if(rs.next()){//if it returns user, userName exists
+				out.println("exists");
+			} else {//no results returned, empty
+				out.println("free");
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			out.println(e.getMessage());//send back error message
+		}
+		
+
 	}
 
 }//end class

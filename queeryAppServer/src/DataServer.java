@@ -1,29 +1,26 @@
-
-
 import java.net.ServerSocket;
 import java.net.Socket;
 
-
-public class QueeryServer {
-	private static final int SERVERPORT = 4910;
+public class DataServer{
+	ServerSocket server = null;//empty ServerSocket
 	public static Boolean serverStatus = true;
-	long connNum = 0;
-	
-	public QueeryServer(){//build the thread factory
-		ServerSocket server = null;//empty ServerSocket
+	int SERVERPORT = 6066;
+	int connNum = 0;
 
+	public DataServer(){
 		try{//start
 			server = new ServerSocket(SERVERPORT);//makes a new socket.	
+
 			while(serverStatus){
-				System.out.println("Queery Server Waiting...");//until connection
+				System.out.println("Pic Server Waiting...");//until connection
 				Socket sock = server.accept();//wait for a connection
 				connNum++;
-				System.out.println("Connected: #" + connNum);//connection complete
-				
-				
-				new Thread(new AppServer(sock, serverStatus)).start();//make AppServer object to handle connection
+				System.out.println("Pic Server connection #" + connNum + " to " + sock.getRemoteSocketAddress());
+
+
+				new Thread(new PicServer(sock, serverStatus)).start();//make AppServer object to handle connection
 			}
-			System.out.println("ending queery server");
+			System.out.println("ending pic server");
 		} catch(Exception e){//something went wrong
 			System.out.println(e);
 		} finally {//close out on end
@@ -37,5 +34,6 @@ public class QueeryServer {
 		}
 		System.out.println("Kill signal received, goodbye!");
 	}
+
 
 }
