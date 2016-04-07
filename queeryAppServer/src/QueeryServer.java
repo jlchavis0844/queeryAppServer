@@ -2,6 +2,7 @@
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Calendar;
 
 
 public class QueeryServer {
@@ -18,7 +19,7 @@ public class QueeryServer {
 				System.out.println("Queery Server Waiting...");//until connection
 				Socket sock = server.accept();//wait for a connection
 				connNum++;
-				System.out.println("Connected: #" + connNum);//connection complete
+				System.out.println("Connected: #" + connNum + Calendar.getInstance().getTime());//connection complete
 				
 				
 				new Thread(new AppServer(sock, serverStatus)).start();//make AppServer object to handle connection
