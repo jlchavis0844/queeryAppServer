@@ -4,10 +4,14 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.net.Socket;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.sql.*;
 
 /**
  * class that is created when a server connection is made
@@ -24,7 +28,7 @@ public class AppServer implements Runnable{
 	private List <String> commandList;//list text string
 	private static final String DB_URL = "jdbc:mysql://cecs-db01.coe.csulb.edu/cecs491bp?autoReconnect=true&useSSL=false";
 	private static final String USER = "cecs491a11";
-	private static final String PASS = "ohChox";//hard coded password
+	private static final String PASS = "ohChox";
 	private Connection conn = null; //create connection
 	private Statement stmt = null; //create null statement
 	private ResultSet rs = null;//for return results
@@ -37,16 +41,16 @@ public class AppServer implements Runnable{
 	 * @param csocket - socket to connect to 
 	 * @throws IOException
 	 */
-	AppServer(Socket csocket, Boolean serverStatus) {
+	AppServer(Socket csocket, Boolean serverStatus, String[] args) {
 		this.csocket = csocket;//receive socket
 		try {
 			read = new BufferedReader(new InputStreamReader(csocket.getInputStream()));//new reader
 			out = new PrintStream(csocket.getOutputStream());//new writer
 			Class.forName("com.mysql.jdbc.Driver");//load JDBC driver
 			conn = DriverManager.getConnection(DB_URL,USER,PASS);//complete connection
+			//conn = DriverManager.getConnection(args[0],args[1],args[2]);//complete connection
 			stmt = conn.createStatement();//set statement from DB connection
 			rs = null;//holds results
-
 		} catch (ClassNotFoundException e) {
 			// JDBC error
 			e.printStackTrace();//print to console
@@ -79,8 +83,8 @@ public class AppServer implements Runnable{
 				}//read in the command
 
 				//start command parse
-				commandList = Arrays.asList(command.split("\\s*,\\s*"));//load text command into a list		
-				for(String s: commandList){
+				commandList = Arrays.asList(command.split("\\s*,\\s*"));//load text command into a list	
+ 				for(String s: commandList){
 					System.out.print(s + " ");
 				}
 
@@ -133,7 +137,11 @@ public class AppServer implements Runnable{
 				case "echo":
 					out.println("echo command received");
 					break;
-
+			
+				case "getUser":
+					getUser();
+					break;
+				
 				default: 
 					System.exit(2);//crash and burn
 					break;
@@ -182,17 +190,23 @@ public class AppServer implements Runnable{
 	private void addUser(){
 		try{
 			System.out.println("Adding a new user");
-
+			
+			String date = commandList.get(6);//get passed date
+			String day = date.substring(2, 4);//day
+			String month = date.substring(0, 2);//month
+			String year = date.substring(4, 8);//year
+			date = year + "-" + month + "-" + day; //"YYYY-MM-DD"
+			
 			for(int i = 0; i < commandList.size(); i++){//go through command list
 				System.out.print(commandList.get(i) + "\t");//print out the command and params
 			}
-			System.out.println();
+			System.out.println("new date " + date);
 
 			//build SQL statement
 			String sqlCmd = "INSERT INTO users VALUES ('" + commandList.get(1) + "', '"
 					+ commandList.get(2) + "', '" + commandList.get(3) + "', '"
 					+ commandList.get(4) + "', '" + commandList.get(5) + "', '"
-					+ commandList.get(6) + "');";
+					+ date + "');";
 			System.out.println("sending command:" + sqlCmd);//print SQL command to console
 			stmt.executeUpdate(sqlCmd);//send command
 
@@ -245,16 +259,46 @@ public class AppServer implements Runnable{
 				} else{//password mismatch
 					error = true;
 					out.println("pswdError");//passwords did not match
+					System.out.println("pswdError");
 				}
 			} else if(tPass == null) {//if no user is found
 				error = true;
 				out.println("userNotFound");
+				System.out.println("userNotFound");
 			} 
 		} catch (SQLException e) {//connection error
 			error = true;
 			out.println(e.getMessage());
 			e.printStackTrace();
 		}
+	}
+	
+	private String credCheck(){
+		//SELECT password FROM users WHERE userName = userName
+		String sqlCmd = "SELECT password FROM users WHERE userName = \"" + commandList.get(1) + "\";";
+		String tPass = null;
+		String condition = null;
+		try {//being SQL command
+			rs = stmt.executeQuery(sqlCmd);//execute SQL, store result in rs
+			if (rs.next()){//if a user was found
+				tPass = rs.getString("password");//store returned password
+				if(tPass.equals(commandList.get(2))){//compare given and the returned
+					System.out.println("password match");
+					condition = "true";
+				} else{//password mismatch
+					error = true;
+					condition = "pswdError";
+				}
+			} else if(tPass == null) {//if no user is found
+				error = true;
+				condition = "userNotFound";
+			} 
+		} catch (SQLException e) {//connection error
+			error = true;
+			out.println(e.getMessage());
+			e.printStackTrace();
+		} 
+		return condition;
 	}
 
 	/**
@@ -402,12 +446,13 @@ public class AppServer implements Runnable{
 	 *AND ((personalSlider.pOrientation)>=0 And (personalSlider.pOrientation)<=5));
 	 */
 	private void getMatches(){
+		String thisUser = commandList.get(1);
 		String cLong = commandList.get(2);//holds client's longitude in string form
 		String cLat = commandList.get(3);//holds the client's latitude in String form
 
 		ArrayList<String> matchList = new ArrayList<>();//holds user names of found matches
 		
-		String[] clientPSliders = getPSliders(commandList.get(1));
+		String[] clientPSliders = getPSliders(thisUser);
 
 		//load in SQL command to find matches using given client's min and max values
 		command ="SELECT location.userName FROM (location INNER JOIN users "
@@ -430,9 +475,13 @@ public class AppServer implements Runnable{
 			while(rs.next()){//while there are matches
 				matchList.add(rs.getString("userName"));//load userName
 			}
+			
+			//remove the user from their own match list
+			matchList.remove(thisUser);
 
 			//each String[] is a match, 0 = userName, 1 = pGenderMin, .....6=pOrientationMax, 7=distance (used later)
 			ArrayList<String[]> fullMatches = getSeekingSlider(matchList);
+			
 
 			//remove the non-overlapping matches, pass clients ratings and the list of matches
 			crossMatch(strArrToIntArr(clientPSliders), fullMatches);
@@ -445,6 +494,10 @@ public class AppServer implements Runnable{
 			String[] tempStrArr;//holds the personal slider for the current match
 			for(String[] currArr: fullMatches){//for all the remaining matches
 				tempStrArr = getPSliders(currArr[0]);//get personal slider for current matches
+				
+				System.out.println("\n" + tempStrArr[0] + ", " + tempStrArr[1] + ", "//loads userName, pGen, pExpr, pOrient
+						+ tempStrArr[2] + ", " + tempStrArr[3] + ", " + currArr[7]);
+				
 				out.println(tempStrArr[0] + ", " + tempStrArr[1] + ", "//loads userName, pGen, pExpr, pOrient
 							+ tempStrArr[2] + ", " + tempStrArr[3] + ", " + currArr[7]);//line 2
 			}
@@ -803,8 +856,61 @@ public class AppServer implements Runnable{
 			e.printStackTrace();
 			out.println(e.getMessage());//send back error message
 		}
-		
-
+	}
+	
+	/**
+	 * Returns most information for a given user. This is used when logging into a new device
+	 * 
+	 */
+	private void getUser(){
+		String check = credCheck();//check login info
+		String info = "";
+		if(check.equals("pswdError")){//password fails
+			out.println(check);
+		} else if(check.equals("userNotFound")){//user not found
+			out.println(check);
+		} else {//credential check passes
+			try {
+				String command = "SELECT users.userName, users.email, users.fName, users.lName, "
+						+ "users.birthDate, personalSlider.pGender, personalSlider.pExpression, "
+						+ "personalSlider.pOrientation, seekingSlider.pGenderMin, seekingSlider.pGenderMax,"
+						+ "seekingSlider.pExpressionMin, seekingSlider.pExpressionMax, "
+						+ "seekingSlider.pOrientationMin, seekingSlider.pOrientationMax "
+						+ "FROM seekingSlider INNER JOIN (users INNER JOIN personalSlider "
+						+ "ON users.userName = personalSlider.userName) ON seekingSlider.userName "
+						+ "= personalSlider.userName WHERE users.userName = \"" + commandList.get(1) + "\";";
+				
+				rs = stmt.executeQuery(command);//send command
+				if(!rs.next()){//check if it is empty
+					out.println("Nothing found");
+				} else {//store information
+					String userName = rs.getString("userName") + ", ";
+					String email = rs.getString("email") + ", ";
+					String fName = rs.getString("fName") + ", ";
+					String lName = rs.getString("lName") + ", ";
+					String birthDate = rs.getString("birthDate") + " ,";
+					String pGender = Integer.valueOf(rs.getInt("pGender")) + ", ";
+					String pExpression = Integer.valueOf(rs.getInt("pExpression")) + ", ";
+					String pOrientation = Integer.valueOf(rs.getInt("pOrientation")) + ", ";
+					String pGenderMin = Integer.valueOf(rs.getInt("pGenderMin")) + ", ";
+					String pGenderMax = Integer.valueOf(rs.getInt("pGenderMin")) + ", ";
+					String pExpressionMin = Integer.valueOf(rs.getInt("pExpressionMin")) + ", ";
+					String pExpressionMax = Integer.valueOf(rs.getInt("pExpressionMax")) + ", ";
+					String pOrientationMin = Integer.valueOf(rs.getInt("pOrientationMin")) + ", ";
+					String pOrientationMax = Integer.valueOf(rs.getInt("pOrientationMax")) + "";
+					
+					//make into string
+					info = userName + email + fName + lName + birthDate + pGender + pExpression
+							+ pOrientation + pGenderMin + pGenderMax + pExpressionMin + pExpressionMax
+							+ pOrientationMin + pOrientationMax;
+					System.out.print(info);
+					out.println(info);//send info
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 
 }//end class

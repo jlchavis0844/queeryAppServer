@@ -9,9 +9,11 @@ public class QueeryServer {
 	private static final int SERVERPORT = 4910;
 	public static Boolean serverStatus = true;
 	long connNum = 0;
+	private static String[] args;
 	
-	public QueeryServer(){//build the thread factory
+	public QueeryServer(String[] args){//build the thread factory
 		ServerSocket server = null;//empty ServerSocket
+		this.args = args;//SQL database info
 
 		try{//start
 			server = new ServerSocket(SERVERPORT);//makes a new socket.	
@@ -22,7 +24,7 @@ public class QueeryServer {
 				System.out.println("Connected: #" + connNum + Calendar.getInstance().getTime());//connection complete
 				
 				
-				new Thread(new AppServer(sock, serverStatus)).start();//make AppServer object to handle connection
+				new Thread(new AppServer(sock, serverStatus, args)).start();//make AppServer object to handle connection
 			}
 			System.out.println("ending queery server");
 		} catch(Exception e){//something went wrong

@@ -17,7 +17,7 @@ public class DataServer{
 	/**
 	 * Default constructors that creates PicServer threads
 	 */
-	public DataServer(){
+	public DataServer(String[] args){
 		try{//start
 			server = new ServerSocket(SERVERPORT);//makes a new socket.	
 
@@ -26,9 +26,7 @@ public class DataServer{
 				Socket sock = server.accept();//wait for a connection
 				connNum++;//increase connection count
 				System.out.println("Pic Server connection #" + connNum + " at " + "Server Started at " + Calendar.getInstance().getTime());
-
-
-				new Thread(new PicServer(sock, serverStatus)).start();//make AppServer object to handle connection
+				new Thread(new PicServer(sock, serverStatus, args)).start();//make AppServer object to handle connection
 			}
 		} catch(Exception e){//something went wrong
 			System.out.println(e);

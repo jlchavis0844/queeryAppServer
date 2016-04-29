@@ -3,16 +3,16 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 import java.sql.*;
-
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
+
+import org.imgscalr.Scalr;
 
 public class PicServer implements Runnable {
 	private Socket sock;
@@ -20,7 +20,7 @@ public class PicServer implements Runnable {
 	private static final String USER = "cecs491a11";
 	private static final String PASS = "ohChox";//hard coded password
 	private Connection conn = null;//empty JDBC sql connection
-	private BufferedImage bimg;//will hold the image, comming or going
+	private BufferedImage bimg;//will hold the image, coming or going
 	private DataInputStream din;//reads data in
 	private DataOutputStream dout;//writes data out
 	private String userName;//userName of the affected party
@@ -35,14 +35,14 @@ public class PicServer implements Runnable {
 	 * @param sock - connection passed from the DataServer class
 	 * @param serverStatus - used to kill the server
 	 */
-	public PicServer(Socket sock, boolean serverStatus) {
+	public PicServer(Socket sock, boolean serverStatus, String[] args) {
 		this.sock = sock;//copy the connection
-
 		try {
 			din = new DataInputStream(sock.getInputStream());//instantiate the input stream
 			dout = new DataOutputStream(sock.getOutputStream());//instantiate the output stream
 			Class.forName("com.mysql.jdbc.Driver");//load JDBC driver
 			conn = DriverManager.getConnection(DB_URL,USER,PASS);//complete connection
+			//conn = DriverManager.getConnection(args[0],args[1],args[2]);//complete connection
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();//for the DataStreams, can't write back the error message to client
@@ -63,7 +63,6 @@ public class PicServer implements Runnable {
 				e1.printStackTrace();
 			}
 		}
-
 	}
 
 	/**
@@ -83,7 +82,7 @@ public class PicServer implements Runnable {
 					dout.writeUTF("true");//on password success
 					addPic(command, userName, password);//call addPic function to add profile pic
 				} else {//send error to the client
-					dout.writeUTF("Password failure");
+					dout.writeUTF("password/user failure");
 				}
 				break;
 
@@ -118,12 +117,10 @@ public class PicServer implements Runnable {
 				dout.close();
 				conn.close();
 				sock.close();
-				pre.close();
 			} catch (IOException | SQLException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-
 		}
 	}//end run
 
@@ -140,32 +137,63 @@ public class PicServer implements Runnable {
 	 */
 	public void addPic(String command, String userName, String password){
 		try{
-			//bimg = ImageIO.read(ImageIO.createImageInputStream(sock.getInputStream()));//read in the image
-			bimg = ImageIO.read(din);
-            JDialog dialog = new JDialog();
+			System.out.println("Adding Picture for " + userName);
+			
+			//read the image into a buffered reader 
+			bimg = ImageIO.read(ImageIO.createImageInputStream(sock.getInputStream()));
+			
+			//if the read failed, the buffered image will be null
+			if(bimg == null){
+				dout.writeUTF("Failed to receive image");
+			}
+			
+			//this will hold the image stream
+			baos = new ByteArrayOutputStream();
+			
+			//resize if either dimensions is larger than 1080
+			if(bimg.getHeight() > 1080 || bimg.getWidth() > 1080){
+				System.out.println("Rescaling image from " + bimg.getWidth() + " x " +bimg.getHeight() );
+				bimg = Scalr.resize(bimg, 1080);
+				System.out.println("to " + bimg.getWidth() + " x " +bimg.getHeight() );
+			}
+			//check that resize worked
+			if(bimg == null){
+				dout.writeUTF("Failed to resize image");
+			}
+			
+			/*JDialog dialog = new JDialog();
             //dialog.setUndecorated(true);
             JLabel label = new JLabel(new ImageIcon(bimg));
             dialog.add(label);
             dialog.pack();
-            dialog.setVisible(true);
-            baos = new ByteArrayOutputStream();
-			ImageIO.write(bimg, "JPG", baos);//write to ByteArrayOutputStream
-			is = new ByteArrayInputStream(baos.toByteArray());//convert to inputstream
-			
-			if(command.equals("addPic")){
-				pre = conn.prepareStatement("insert into images (userName, profilePic) values (?,?)");
-				pre.setString(1,userName);
-				pre.setBinaryStream(2, is, (int)baos.size());
-			} else {
-				pre = conn.prepareStatement("update images set profilePic = ? where userName = ?");
-				pre.setBinaryStream(1, is, (int)baos.size());
-				pre.setString(2, userName);
-			}
+            dialog.setVisible(true);*/
 
-			if(pre.executeUpdate() == 1){
-				dout.writeUTF("true");
+			//write image to byte array
+			ImageIO.write(bimg, "jpg", baos);
+			
+			//the write ByteArray into an input stream to load into SQL
+			is = new ByteArrayInputStream(baos.toByteArray());
+			
+			//check if SQL works.
+			if(is != null){
+				if(command.equals("addPic")){//add picture command
+					pre = conn.prepareStatement("insert into images (userName, profilePic) values (?,?)");
+					pre.setString(1,userName);
+					pre.setBinaryStream(2, is, (int)baos.size());
+				} else {//update picture command
+					pre = conn.prepareStatement("update images set profilePic = ? where userName = ?");
+					pre.setBinaryStream(1, is, (int)baos.size());
+					pre.setString(2, userName);
+				}
+
+				//did the insert work?
+				if(pre.executeUpdate() == 1){
+					dout.writeUTF("true");
+				} else {//insert fail
+					dout.writeUTF("Adding to SQL failed");
+				}
 			} else {
-				dout.writeUTF("Adding to SQL failed");
+				dout.writeUTF("Image fail");
 			}
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
@@ -194,6 +222,10 @@ public class PicServer implements Runnable {
 		}
 	}//end addPic
 
+	/**
+	 * 
+	 * @param userName
+	 */
 	public void getPic(String userName){
 		try{
 			String query = "SELECT profilePic FROM images WHERE userName = ?;";
@@ -202,12 +234,16 @@ public class PicServer implements Runnable {
 			ResultSet rs = pre.executeQuery();
 
 			if(rs.next()){
-				dout.writeUTF("true");
-				dout.flush();
 				Blob blob = rs.getBlob("profilePic");
 				byte[] rsBlob = blob.getBytes(1, (int)blob.length());
-				is = new ByteArrayInputStream(rsBlob);
-				bimg = ImageIO.read(is);
+				dout.writeUTF(String.valueOf(rsBlob.length));
+				dout.flush();
+				dout.write(rsBlob);
+				dout.close();
+				sock.close();
+				System.out.println("Returning the pic for " + userName);
+				//is = new ByteArrayInputStream(rsBlob);
+				//bimg = ImageIO.read(is);
 
 				/* JDialog dialog = new JDialog();
 	            //dialog.setUndecorated(true);
@@ -217,11 +253,11 @@ public class PicServer implements Runnable {
 	            dialog.setVisible(true);*/
 
 				//is.close();
-				ImageIO.write(bimg, "JPG",sock.getOutputStream());
-				sock.getOutputStream().close();
+				/*ImageIO.write(bimg, "JPG",sock.getOutputStream());
+				sock.getOutputStream().close();*/
 				System.out.println("Image sent to " + sock.getRemoteSocketAddress());
 			} else {
-				dout.writeUTF("User not found");
+				dout.writeUTF("0");
 			}
 
 
@@ -229,17 +265,22 @@ public class PicServer implements Runnable {
 			//ImageIO.write(bimg, "jpg", output);
 
 
-		} catch (SQLException e) {
+		}catch (IOException | SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			try {
+				dout.writeUTF("0");
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
 		} finally {
 			try {
+				if(sock != null)
+					sock.close();
 				pre.close();
 				conn.close();
-			} catch (SQLException e) {
+			} catch (SQLException | IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
@@ -254,15 +295,11 @@ public class PicServer implements Runnable {
 			rs.next();
 			String returnedPass = rs.getString("password");
 			return returnedPass.equals(pass);
-			
+
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
-
-
 		return false;
 	}
-
 }
