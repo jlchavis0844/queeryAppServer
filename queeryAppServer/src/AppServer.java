@@ -26,7 +26,8 @@ public class AppServer implements Runnable{
 	private BufferedReader read;//reads incoming text
 	private PrintStream out;//sends return text
 	private List <String> commandList;//list text string
-	private static final String DB_URL = "jdbc:mysql://cecs-db01.coe.csulb.edu/cecs491bp?autoReconnect=true&useSSL=false";
+	private static final String DB_URL = "jdbc:mysql://cecs-db01.coe.csulb.edu/"
+			+ "cecs491bp?autoReconnect=true&useSSL=false";
 	private static final String USER = "cecs491a11";
 	private static final String PASS = "ohChox";
 	private Connection conn = null; //create connection
@@ -84,7 +85,7 @@ public class AppServer implements Runnable{
 
 				//start command parse
 				commandList = Arrays.asList(command.split("\\s*,\\s*"));//load text command into a list	
- 				for(String s: commandList){
+ 				for(String s: commandList){//print command
 					System.out.print(s + " ");
 				}
 
@@ -114,11 +115,11 @@ public class AppServer implements Runnable{
 					setLocation();//called on registration only, sets location 
 					break;
 
-				case "setSSlider":
+				case "setSSlider"://set seeking slider
 					setSeekingSlider();
 					break;
 
-				case "updateSSlider":
+				case "updateSSlider"://update seeking slider
 					updateSeekingSlider();
 					break;
 
@@ -126,24 +127,24 @@ public class AppServer implements Runnable{
 					updateLocation();//updates a user's location
 					break;
 					
-				case "getMatches":
+				case "getMatches"://return matches
 					getMatches();
 					break;
 					
-				case "testUserName":
+				case "testUserName"://test if the username is free
 					testUserName();
 					break;
 					
-				case "echo":
+				case "echo"://send a line of text to test connection
 					out.println("echo command received");
 					break;
 			
-				case "getUser":
+				case "getUser"://returns user's info
 					getUser();
 					break;
 				
-				default: 
-					System.exit(2);//crash and burn
+				default://if 
+					System.exit(2);//crash and burn this thread
 					break;
 				}
 			}
@@ -183,7 +184,8 @@ public class AppServer implements Runnable{
 	 * 
 	 * writes status to out, true = success, else error message<br>
 	 * builds statements like: INSERT INTO users VALUES
-	 * ('HankTankerous', 'password1', 'first', 'last', 'email@mail.get', '34'); <br>
+	 * ('HankTankerous', 'password1', 'first', 'last', 
+	 * 'email@mail.get', '34'); <br>
 	 * working for proto1
 	 * 
 	 */
@@ -273,6 +275,12 @@ public class AppServer implements Runnable{
 		}
 	}
 	
+	/**
+	 * checks the username and password combination to verify user's login
+	 * @return String true - password matches
+	 * @return String pswdError - password doesn't match
+	 * @return String userNotFound - given user doesn't exists
+	 */
 	private String credCheck(){
 		//SELECT password FROM users WHERE userName = userName
 		String sqlCmd = "SELECT password FROM users WHERE userName = \"" + commandList.get(1) + "\";";
@@ -765,9 +773,9 @@ public class AppServer implements Runnable{
 	}
 
 	/**
-	 * 
-	 * @param rad
-	 * @return
+	 * Converts radians to degrees
+	 * @param rad - double of the radians
+	 * @return double of the converted degrees
 	 */
 	private static double rad2deg(double rad) {
 		return (rad * 180 / Math.PI);
@@ -837,6 +845,7 @@ public class AppServer implements Runnable{
 	
 	/**
 	 * test to see if the given username already exists
+	 * <br> This function prints results directly back to connection
 	 */
 	private void testUserName(){
 		//get user with the 'test' userName
@@ -860,7 +869,7 @@ public class AppServer implements Runnable{
 	
 	/**
 	 * Returns most information for a given user. This is used when logging into a new device
-	 * 
+	 * <br> This function prints results directly back to connection
 	 */
 	private void getUser(){
 		String check = credCheck();//check login info

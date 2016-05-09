@@ -4,12 +4,17 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Calendar;
 
-
+/**
+ * 
+ * @author James
+ *
+ */
 public class QueeryServer {
 	private static final int SERVERPORT = 4910;
 	public static Boolean serverStatus = true;
 	long connNum = 0;
-	private static String[] args;
+	@SuppressWarnings("unused")
+	private String[] args;
 	
 	public QueeryServer(String[] args){//build the thread factory
 		ServerSocket server = null;//empty ServerSocket

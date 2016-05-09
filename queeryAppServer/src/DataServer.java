@@ -3,8 +3,7 @@ import java.net.Socket;
 import java.util.Calendar;
 
 /**
- * This class will start and maintain several PicServer threads. There
- * are not params or returns
+ * This class will start and maintain several PicServer threads. 
  * @author James
  *
  */
@@ -15,7 +14,8 @@ public class DataServer{
 	int connNum = 0;//keeps track of how many connections have been made
 
 	/**
-	 * Default constructors that creates PicServer threads
+	 * Constructor
+	 * @param args - Params of server address, DBusername, DBpassword
 	 */
 	public DataServer(String[] args){
 		try{//start
@@ -25,8 +25,11 @@ public class DataServer{
 				System.out.println("Pic Server Waiting...");//until connection
 				Socket sock = server.accept();//wait for a connection
 				connNum++;//increase connection count
-				System.out.println("Pic Server connection #" + connNum + " at " + "Server Started at " + Calendar.getInstance().getTime());
-				new Thread(new PicServer(sock, serverStatus, args)).start();//make AppServer object to handle connection
+				System.out.println("Pic Server connection #"+connNum+" at " + 
+				sock.getRemoteSocketAddress() +	" Server Started at "
+						+ Calendar.getInstance().getTime());
+				//make AppServer object to handle connection
+				new Thread(new PicServer(sock, serverStatus, args)).start();
 			}
 		} catch(Exception e){//something went wrong
 			System.out.println(e);

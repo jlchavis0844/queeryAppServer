@@ -1,0 +1,1 @@
+To start the server application, run either StartQueeryServerJAR.bat or StartQueeryServerEXE.bat. Running the exe or jar file will launch a headless instance. You can run the jar or exe directly from a console. All external libraries can be found in ./queeryAppServer/lib/ folder.
